@@ -1,0 +1,136 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--background);
+  color: var(--text-main);
+  overflow: hidden; /* Prevent scrolling, canvas will handle it */
+}
+
+/* App Layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Header & Toolbar */
+.toolbar {
+  height: 48px;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  z-index: 10;
+}
+
+.toolbar h1 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-outline {
+  border-color: var(--border);
+  color: var(--text-main);
+}
+
+.btn-outline:hover {
+  background-color: var(--background);
+}
+
+.btn-danger {
+  color: #ef4444;
+  border-color: #fca5a5;
+  background-color: #fef2f2;
+}
+
+.btn-danger:hover {
+  background-color: #fee2e2;
+}
+
+.btn.active {
+  background-color: #e0e7ff;
+  color: var(--primary);
+  border-color: #c7d2fe;
+}
+
+/* Canvas Area */
+.canvas-container {
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 48px);
+  background-color: #e2e8f0;
+  cursor: grab;
+  position: relative;
+}
+
+.canvas-container:active {
+  cursor: grabbing;
+}
+
+.canvas-container.mode-measure {
+  cursor: crosshair;
+}
+
+.coords-overlay {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid var(--border);
+}
