@@ -40,6 +40,7 @@ export default function App() {
   const [mode, setMode] = useState<Mode>('select');
   const [lines, setLines] = useState<MeasurementLine[]>([]);
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
+  const [isRobotSelected, setIsRobotSelected] = useState<boolean>(false);
   const [drawingLine, setDrawingLine] = useState<[number, number, number, number] | null>(null);
   
   const [robotState, setRobotState] = useState<RobotState>({
@@ -206,9 +207,10 @@ export default function App() {
   };
 
   const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    // Deselect if clicking on empty stage
-    if (e.target === stageRef.current) {
+    // Deselect if clicking on empty stage or background image
+    if (e.target === stageRef.current || e.target.name() === 'bg-image') {
       setActiveLineId(null);
+      setIsRobotSelected(false);
     }
 
     if (mode === 'measure') {
@@ -358,6 +360,7 @@ export default function App() {
   const resetAll = () => {
     setLines([]);
     setActiveLineId(null);
+    setIsRobotSelected(false);
     setDrawingLine(null);
     setRobotState({
       x: FIELD_WIDTH / 2,
@@ -376,10 +379,17 @@ export default function App() {
   // Setup Transformer
   useEffect(() => {
     if (trRef.current && robotRef.current && mode === 'select') {
-      trRef.current.nodes([robotRef.current]);
+      if (isRobotSelected) {
+        trRef.current.nodes([robotRef.current]);
+      } else {
+        trRef.current.nodes([]);
+      }
+      trRef.current.getLayer()?.batchDraw();
+    } else if (trRef.current) {
+      trRef.current.nodes([]);
       trRef.current.getLayer()?.batchDraw();
     }
-  }, [mode, robotState]);
+  }, [mode, robotState, isRobotSelected]);
 
   return (
     <div className="app-container">
@@ -434,7 +444,7 @@ export default function App() {
           scaleY={stageScale}
           x={stagePos.x}
           y={stagePos.y}
-          draggable={mode === 'select' && activeLineId === null} // only pan in select mode when no line is being dragged
+          draggable={mode === 'select'} // stage is always draggable in select mode, shape dragging stops propagation
           onWheel={handleWheel}
           onMouseDown={handleStageMouseDown}
           onMouseMove={handleStageMouseMove}
@@ -447,6 +457,7 @@ export default function App() {
               width={FIELD_WIDTH}
               height={FIELD_HEIGHT}
               opacity={0.9}
+              name="bg-image"
             />
           </Layer>
 
@@ -460,6 +471,12 @@ export default function App() {
               y={robotState.y}
               rotation={robotState.rotation}
               draggable={mode === 'select'}
+              onDragStart={() => {
+                if (mode === 'select') {
+                  setActiveLineId(null);
+                  setIsRobotSelected(true);
+                }
+              }}
               onDragMove={handleRobotDragMove}
               onDragEnd={handleRobotDragEnd}
               onTransform={handleRobotTransform}
@@ -479,9 +496,7 @@ export default function App() {
               onClick={() => {
                 if (mode === 'select') {
                   setActiveLineId(null);
-                  if (trRef.current && robotRef.current) {
-                    trRef.current.nodes([robotRef.current]);
-                  }
+                  setIsRobotSelected(true);
                 }
               }}
               onMouseEnter={e => { if(mode === 'select') e.target.getStage()!.container().style.cursor = 'grab'; }}
@@ -522,7 +537,12 @@ export default function App() {
               const midY = (line.points[1] + line.points[3]) / 2;
               
               return (
-                <Group key={line.id} onClick={() => { if(mode === 'select') setActiveLineId(line.id); }}>
+                <Group key={line.id} onClick={() => { 
+                  if(mode === 'select') {
+                    setActiveLineId(line.id);
+                    setIsRobotSelected(false);
+                  }
+                }}>
                   <Line
                     points={line.points}
                     stroke={isActive ? '#ef4444' : '#2563eb'}
