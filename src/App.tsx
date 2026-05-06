@@ -192,6 +192,19 @@ export default function App() {
     return { x: snappedX, y: snappedY };
   };
 
+  const applyAngleSnapping = (startX: number, startY: number, endX: number, endY: number) => {
+    if (!modifiersRef.current.shift) return { x: endX, y: endY };
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const angle = Math.atan2(dy, dx);
+    const snappedAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    return {
+      x: startX + Math.cos(snappedAngle) * dist,
+      y: startY + Math.sin(snappedAngle) * dist,
+    };
+  };
+
   const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     // Deselect if clicking on empty stage
     if (e.target === stageRef.current) {
@@ -208,9 +221,10 @@ export default function App() {
         setDrawingLine([snapped.x, snapped.y, snapped.x, snapped.y]);
       } else {
         // Finish drawing
+        const finalPoint = applyAngleSnapping(drawingLine[0], drawingLine[1], snapped.x, snapped.y);
         const newLine = {
           id: Date.now().toString(),
-          points: [drawingLine[0], drawingLine[1], snapped.x, snapped.y] as [number, number, number, number],
+          points: [drawingLine[0], drawingLine[1], finalPoint.x, finalPoint.y] as [number, number, number, number],
         };
         setLines([...lines, newLine]);
         setDrawingLine(null);
@@ -227,7 +241,8 @@ export default function App() {
 
     if (mode === 'measure' && drawingLine) {
       const snapped = getSnappedPoint(pos.x, pos.y);
-      setDrawingLine([drawingLine[0], drawingLine[1], snapped.x, snapped.y]);
+      const finalPoint = applyAngleSnapping(drawingLine[0], drawingLine[1], snapped.x, snapped.y);
+      setDrawingLine([drawingLine[0], drawingLine[1], finalPoint.x, finalPoint.y]);
     }
   };
 
@@ -314,17 +329,18 @@ export default function App() {
   };
 
   // We use dragBoundFunc for endpoints of measurement lines
-  const createLinePointDragFunc = () => (pos: Konva.Vector2d) => {
+  const createLinePointDragFunc = (otherX: number, otherY: number) => (pos: Konva.Vector2d) => {
     const stage = stageRef.current;
     if (!stage) return pos;
     const transform = stage.getAbsoluteTransform().copy();
     transform.invert();
     const localPos = transform.point(pos);
     const snapped = getSnappedPoint(localPos.x, localPos.y);
+    const finalPoint = applyAngleSnapping(otherX, otherY, snapped.x, snapped.y);
     
     // Return to absolute coordinates for Konva dragBoundFunc
     const absTransform = stage.getAbsoluteTransform();
-    return absTransform.point(snapped);
+    return absTransform.point(finalPoint);
   };
 
   const updateLinePoint = (lineId: string, pointIndex: 0 | 1, x: number, y: number) => {
@@ -434,94 +450,6 @@ export default function App() {
             />
           </Layer>
 
-          {/* Lines Layer */}
-          <Layer>
-            {lines.map((line) => {
-              const isActive = line.id === activeLineId;
-              const dist = getDistance(line.points[0], line.points[1], line.points[2], line.points[3]);
-              const midX = (line.points[0] + line.points[2]) / 2;
-              const midY = (line.points[1] + line.points[3]) / 2;
-              
-              return (
-                <Group key={line.id} onClick={() => { if(mode === 'select') setActiveLineId(line.id); }}>
-                  <Line
-                    points={line.points}
-                    stroke={isActive ? '#ef4444' : '#2563eb'}
-                    strokeWidth={isActive ? 3 / stageScale : 2 / stageScale}
-                    hitStrokeWidth={10 / stageScale}
-                  />
-                  {/* Endpoints */}
-                  <Circle
-                    x={line.points[0]}
-                    y={line.points[1]}
-                    radius={5 / stageScale}
-                    fill={isActive ? '#ef4444' : '#2563eb'}
-                    draggable={mode === 'select' && isActive}
-                    dragBoundFunc={createLinePointDragFunc()}
-                    onDragMove={(e) => {
-                      const pos = e.target.position();
-                      updateLinePoint(line.id, 0, pos.x, pos.y);
-                    }}
-                    onMouseEnter={e => { if(mode === 'select') e.target.getStage()!.container().style.cursor = 'move'; }}
-                    onMouseLeave={e => { e.target.getStage()!.container().style.cursor = 'default'; }}
-                  />
-                  <Circle
-                    x={line.points[2]}
-                    y={line.points[3]}
-                    radius={5 / stageScale}
-                    fill={isActive ? '#ef4444' : '#2563eb'}
-                    draggable={mode === 'select' && isActive}
-                    dragBoundFunc={createLinePointDragFunc()}
-                    onDragMove={(e) => {
-                      const pos = e.target.position();
-                      updateLinePoint(line.id, 1, pos.x, pos.y);
-                    }}
-                    onMouseEnter={e => { if(mode === 'select') e.target.getStage()!.container().style.cursor = 'move'; }}
-                    onMouseLeave={e => { e.target.getStage()!.container().style.cursor = 'default'; }}
-                  />
-                  {/* Text Label */}
-                  <Text
-                    x={midX}
-                    y={midY}
-                    text={`${dist.toFixed(1)} mm`}
-                    fontSize={14 / stageScale}
-                    fill="#1e293b"
-                    padding={4 / stageScale}
-                    align="center"
-                    verticalAlign="middle"
-                    offsetX={50 / stageScale} // approximate center offset
-                    offsetY={20 / stageScale}
-                    stroke="#ffffff"
-                    strokeWidth={3 / stageScale}
-                    fillAfterStrokeEnabled
-                  />
-                </Group>
-              );
-            })}
-
-            {/* Drawing Preview Line */}
-            {mode === 'measure' && drawingLine && (
-              <Group>
-                <Line
-                  points={drawingLine}
-                  stroke="#ef4444"
-                  strokeWidth={2 / stageScale}
-                  dash={[5 / stageScale, 5 / stageScale]}
-                />
-                <Text
-                    x={(drawingLine[0] + drawingLine[2]) / 2}
-                    y={(drawingLine[1] + drawingLine[3]) / 2}
-                    text={`${getDistance(drawingLine[0], drawingLine[1], drawingLine[2], drawingLine[3]).toFixed(1)} mm`}
-                    fontSize={14 / stageScale}
-                    fill="#ef4444"
-                    stroke="#ffffff"
-                    strokeWidth={3 / stageScale}
-                    fillAfterStrokeEnabled
-                  />
-              </Group>
-            )}
-          </Layer>
-
           {/* Robot Layer */}
           <Layer>
             <Group
@@ -582,6 +510,94 @@ export default function App() {
                 enabledAnchors={[]} // disable scale anchors, only keep rotation
                 ignoreStroke={true}
               />
+            )}
+          </Layer>
+
+          {/* Lines Layer */}
+          <Layer>
+            {lines.map((line) => {
+              const isActive = line.id === activeLineId;
+              const dist = getDistance(line.points[0], line.points[1], line.points[2], line.points[3]);
+              const midX = (line.points[0] + line.points[2]) / 2;
+              const midY = (line.points[1] + line.points[3]) / 2;
+              
+              return (
+                <Group key={line.id} onClick={() => { if(mode === 'select') setActiveLineId(line.id); }}>
+                  <Line
+                    points={line.points}
+                    stroke={isActive ? '#ef4444' : '#2563eb'}
+                    strokeWidth={isActive ? 3 / stageScale : 2 / stageScale}
+                    hitStrokeWidth={10 / stageScale}
+                  />
+                  {/* Endpoints */}
+                  <Circle
+                    x={line.points[0]}
+                    y={line.points[1]}
+                    radius={5 / stageScale}
+                    fill={isActive ? '#ef4444' : '#2563eb'}
+                    draggable={mode === 'select' && isActive}
+                    dragBoundFunc={createLinePointDragFunc(line.points[2], line.points[3])}
+                    onDragMove={(e) => {
+                      const pos = e.target.position();
+                      updateLinePoint(line.id, 0, pos.x, pos.y);
+                    }}
+                    onMouseEnter={e => { if(mode === 'select') e.target.getStage()!.container().style.cursor = 'move'; }}
+                    onMouseLeave={e => { e.target.getStage()!.container().style.cursor = 'default'; }}
+                  />
+                  <Circle
+                    x={line.points[2]}
+                    y={line.points[3]}
+                    radius={5 / stageScale}
+                    fill={isActive ? '#ef4444' : '#2563eb'}
+                    draggable={mode === 'select' && isActive}
+                    dragBoundFunc={createLinePointDragFunc(line.points[0], line.points[1])}
+                    onDragMove={(e) => {
+                      const pos = e.target.position();
+                      updateLinePoint(line.id, 1, pos.x, pos.y);
+                    }}
+                    onMouseEnter={e => { if(mode === 'select') e.target.getStage()!.container().style.cursor = 'move'; }}
+                    onMouseLeave={e => { e.target.getStage()!.container().style.cursor = 'default'; }}
+                  />
+                  {/* Text Label */}
+                  <Text
+                    x={midX}
+                    y={midY}
+                    text={`${dist.toFixed(1)} mm`}
+                    fontSize={14 / stageScale}
+                    fill="#1e293b"
+                    padding={4 / stageScale}
+                    align="center"
+                    verticalAlign="middle"
+                    offsetX={50 / stageScale} // approximate center offset
+                    offsetY={20 / stageScale}
+                    stroke="#ffffff"
+                    strokeWidth={3 / stageScale}
+                    fillAfterStrokeEnabled
+                  />
+                </Group>
+              );
+            })}
+
+            {/* Drawing Preview Line */}
+            {mode === 'measure' && drawingLine && (
+              <Group>
+                <Line
+                  points={drawingLine}
+                  stroke="#ef4444"
+                  strokeWidth={2 / stageScale}
+                  dash={[5 / stageScale, 5 / stageScale]}
+                />
+                <Text
+                    x={(drawingLine[0] + drawingLine[2]) / 2}
+                    y={(drawingLine[1] + drawingLine[3]) / 2}
+                    text={`${getDistance(drawingLine[0], drawingLine[1], drawingLine[2], drawingLine[3]).toFixed(1)} mm`}
+                    fontSize={14 / stageScale}
+                    fill="#ef4444"
+                    stroke="#ffffff"
+                    strokeWidth={3 / stageScale}
+                    fillAfterStrokeEnabled
+                  />
+              </Group>
             )}
           </Layer>
         </Stage>
