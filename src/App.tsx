@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Group, Transformer } from 'react-konva';
 import useImage from 'use-image';
 import { MousePointer2, Ruler, RotateCcw, Trash2 } from 'lucide-react';
@@ -48,7 +48,6 @@ export default function App() {
     rotation: 0,
   });
   
-  const [modifiers, setModifiers] = useState<Modifiers>({ shift: false, ctrl: false });
   const modifiersRef = useRef<Modifiers>({ shift: false, ctrl: false });
   
   const [stageScale, setStageScale] = useState(1);
@@ -56,8 +55,8 @@ export default function App() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   // Images
-  const [bgImage] = useImage('/imgs/WRO-2026-GameMat-Elementary-Printing-File (1)-01.png');
-  const [robotImage] = useImage('/imgs/國小組比賽機V1_20260504.png');
+  const [bgImage] = useImage('./imgs/WRO-2026-GameMat-Elementary-Printing-File (1)-01.png');
+  const [robotImage] = useImage('./imgs/國小組比賽機V1_20260504.png');
 
   // Refs
   const stageRef = useRef<Konva.Stage>(null);
@@ -94,13 +93,11 @@ export default function App() {
       const shift = e.key === 'Shift' ? true : modifiersRef.current.shift;
       const ctrl = (e.key === 'Control' || e.key === 'Meta') ? true : modifiersRef.current.ctrl;
       modifiersRef.current = { shift, ctrl };
-      setModifiers({ shift, ctrl });
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       const shift = e.key === 'Shift' ? false : modifiersRef.current.shift;
       const ctrl = (e.key === 'Control' || e.key === 'Meta') ? false : modifiersRef.current.ctrl;
       modifiersRef.current = { shift, ctrl };
-      setModifiers({ shift, ctrl });
     };
     
     window.addEventListener('keydown', handleKeyDown);
@@ -247,8 +244,6 @@ export default function App() {
        
        const topLeft = transform.point({ x: rect.x, y: rect.y });
        const bottomRight = transform.point({ x: rect.x + rect.width, y: rect.y + rect.height });
-       const localWidth = bottomRight.x - topLeft.x;
-       const localHeight = bottomRight.y - topLeft.y;
 
        let snapLeft = topLeft.x;
        let snapRight = bottomRight.x;
@@ -288,7 +283,7 @@ export default function App() {
     });
   };
 
-  const handleRobotTransform = (e: Konva.KonvaEventObject<Event>) => {
+  const handleRobotTransform = () => {
     const node = robotRef.current;
     if (!node) return;
 
@@ -319,7 +314,7 @@ export default function App() {
   };
 
   // We use dragBoundFunc for endpoints of measurement lines
-  const createLinePointDragFunc = (lineIndex: number, pointIndex: 0 | 1) => (pos: Konva.Vector2d) => {
+  const createLinePointDragFunc = () => (pos: Konva.Vector2d) => {
     const stage = stageRef.current;
     if (!stage) return pos;
     const transform = stage.getAbsoluteTransform().copy();
@@ -462,7 +457,7 @@ export default function App() {
                     radius={5 / stageScale}
                     fill={isActive ? '#ef4444' : '#2563eb'}
                     draggable={mode === 'select' && isActive}
-                    dragBoundFunc={createLinePointDragFunc(-1, 0)}
+                    dragBoundFunc={createLinePointDragFunc()}
                     onDragMove={(e) => {
                       const pos = e.target.position();
                       updateLinePoint(line.id, 0, pos.x, pos.y);
@@ -476,7 +471,7 @@ export default function App() {
                     radius={5 / stageScale}
                     fill={isActive ? '#ef4444' : '#2563eb'}
                     draggable={mode === 'select' && isActive}
-                    dragBoundFunc={createLinePointDragFunc(-1, 1)}
+                    dragBoundFunc={createLinePointDragFunc()}
                     onDragMove={(e) => {
                       const pos = e.target.position();
                       updateLinePoint(line.id, 1, pos.x, pos.y);
