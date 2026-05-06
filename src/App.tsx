@@ -55,7 +55,7 @@ export default function App() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   // Images
-  const [bgImage] = useImage('./imgs/WRO-2026-GameMat-Elementary-Printing-File (1)-01.png');
+  const [bgImage] = useImage('./imgs/field_optimized.webp');
   const [robotImage] = useImage('./imgs/國小組比賽機V1_20260504.png');
 
   // Refs
