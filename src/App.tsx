@@ -147,7 +147,10 @@ export default function App() {
   };
 
   // Snapping Logic for Measurement Tool
-  const getSnappedPoint = (x: number, y: number) => {
+  const getSnappedPoint = (rawX: number, rawY: number) => {
+    const x = Math.max(0, Math.min(rawX, FIELD_WIDTH));
+    const y = Math.max(0, Math.min(rawY, FIELD_HEIGHT));
+
     let snappedX = x;
     let snappedY = y;
     let minSnapDist = MEASURE_SNAP_DISTANCE;
@@ -194,15 +197,39 @@ export default function App() {
   };
 
   const applyAngleSnapping = (startX: number, startY: number, endX: number, endY: number) => {
-    if (!modifiersRef.current.shift) return { x: endX, y: endY };
+    if (!modifiersRef.current.shift) {
+      return { 
+        x: Math.max(0, Math.min(endX, FIELD_WIDTH)), 
+        y: Math.max(0, Math.min(endY, FIELD_HEIGHT)) 
+      };
+    }
     const dx = endX - startX;
     const dy = endY - startY;
     const angle = Math.atan2(dy, dx);
     const snappedAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
     const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    let maxDist = Infinity;
+    const cosA = Math.cos(snappedAngle);
+    const sinA = Math.sin(snappedAngle);
+
+    if (cosA > 1e-5) {
+      maxDist = Math.min(maxDist, (FIELD_WIDTH - startX) / cosA);
+    } else if (cosA < -1e-5) {
+      maxDist = Math.min(maxDist, (0 - startX) / cosA);
+    }
+
+    if (sinA > 1e-5) {
+      maxDist = Math.min(maxDist, (FIELD_HEIGHT - startY) / sinA);
+    } else if (sinA < -1e-5) {
+      maxDist = Math.min(maxDist, (0 - startY) / sinA);
+    }
+
+    const finalDist = Math.min(dist, maxDist);
+
     return {
-      x: startX + Math.cos(snappedAngle) * dist,
-      y: startY + Math.sin(snappedAngle) * dist,
+      x: startX + cosA * finalDist,
+      y: startY + sinA * finalDist,
     };
   };
 
@@ -346,11 +373,13 @@ export default function App() {
   };
 
   const updateLinePoint = (lineId: string, pointIndex: 0 | 1, x: number, y: number) => {
+    const clampedX = Math.max(0, Math.min(x, FIELD_WIDTH));
+    const clampedY = Math.max(0, Math.min(y, FIELD_HEIGHT));
     setLines(lines.map(line => {
       if (line.id === lineId) {
         const newPoints = [...line.points] as [number, number, number, number];
-        newPoints[pointIndex * 2] = x;
-        newPoints[pointIndex * 2 + 1] = y;
+        newPoints[pointIndex * 2] = clampedX;
+        newPoints[pointIndex * 2 + 1] = clampedY;
         return { ...line, points: newPoints };
       }
       return line;
