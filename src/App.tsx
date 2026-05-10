@@ -405,6 +405,11 @@ export default function App() {
     }
   };
 
+  const deleteAllLines = () => {
+    setLines([]);
+    setActiveLineId(null);
+  };
+
   // Setup Transformer
   useEffect(() => {
     if (trRef.current && robotRef.current && mode === 'select') {
@@ -456,6 +461,11 @@ export default function App() {
               <span>刪除測量線</span>
             </button>
           )}
+
+          <button className="btn btn-danger" onClick={deleteAllLines}>
+            <Trash2 size={18} />
+            <span>刪除所有測量線</span>
+          </button>
 
           <button className="btn btn-outline" onClick={resetAll}>
             <RotateCcw size={18} />
