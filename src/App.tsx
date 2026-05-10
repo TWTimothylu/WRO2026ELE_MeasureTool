@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Group, Transformer } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Group, Transformer, Arc, Label, Tag } from 'react-konva';
 import useImage from 'use-image';
 import { MousePointer2, Ruler, RotateCcw, Trash2 } from 'lucide-react';
 import Konva from 'konva';
@@ -41,6 +41,7 @@ export default function App() {
   const [lines, setLines] = useState<MeasurementLine[]>([]);
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [isRobotSelected, setIsRobotSelected] = useState<boolean>(false);
+  const [isRotating, setIsRotating] = useState<boolean>(false);
   const [drawingLine, setDrawingLine] = useState<[number, number, number, number] | null>(null);
   
   const [robotState, setRobotState] = useState<RobotState>({
@@ -355,6 +356,8 @@ export default function App() {
     // This forces it to rotate exactly around our custom offset (pivot).
     node.x(robotState.x);
     node.y(robotState.y);
+
+    setRobotState(prev => ({ ...prev, rotation: rot }));
   };
 
   // We use dragBoundFunc for endpoints of measurement lines
@@ -518,8 +521,12 @@ export default function App() {
               }}
               onDragMove={handleRobotDragMove}
               onDragEnd={handleRobotDragEnd}
+              onTransformStart={() => {
+                setIsRotating(true);
+              }}
               onTransform={handleRobotTransform}
               onTransformEnd={(e) => {
+                setIsRotating(false);
                 // Ensure the node physically snaps back to the correct position
                 // in case Konva's internal transform bypassed our locks on the last frame
                 e.target.x(robotState.x);
@@ -565,6 +572,62 @@ export default function App() {
                 ignoreStroke={true}
               />
             )}
+
+            {/* Protractor Overlay */}
+            {isRotating && (() => {
+              const rotAngle = Math.round(robotState.rotation);
+              let displayRot = rotAngle % 360;
+              if (displayRot > 180) displayRot -= 360;
+              if (displayRot <= -180) displayRot += 360;
+
+              // Assume robot's front is UP (-90 degrees in canvas coords)
+              const offsetAngle = -90;
+              const drawAngleRad = (rotAngle + offsetAngle) * Math.PI / 180;
+
+              // Arc needs to always sweep positively to avoid Konva's negative angle bug
+              const sweepAngle = Math.abs(displayRot);
+              const arcStartRotation = displayRot >= 0 ? offsetAngle : offsetAngle + displayRot;
+
+              return (
+                <Group x={robotState.x} y={robotState.y}>
+                  {/* --- Inverse Color Outlines (Difference) --- */}
+                  <Circle radius={160} stroke="white" strokeWidth={4} dash={[10, 10]} globalCompositeOperation="difference" />
+                  <Line points={[-170, 0, 170, 0]} stroke="white" strokeWidth={3} globalCompositeOperation="difference" />
+                  <Line points={[0, -170, 0, 170]} stroke="white" strokeWidth={3} globalCompositeOperation="difference" />
+                  <Line points={[0, 0, 0, -160]} stroke="white" strokeWidth={5} dash={[5, 5]} globalCompositeOperation="difference" />
+
+                  {/* --- Main Shapes --- */}
+                  <Circle radius={160} stroke="#60a5fa" strokeWidth={2} dash={[10, 10]} />
+                  <Line points={[-170, 0, 170, 0]} stroke="#e2e8f0" strokeWidth={1} />
+                  <Line points={[0, -170, 0, 170]} stroke="#e2e8f0" strokeWidth={1} />
+                  
+                  {/* Front indicator line (0 degrees) */}
+                  <Line points={[0, 0, 0, -160]} stroke="#3b82f6" strokeWidth={3} dash={[5, 5]} />
+
+                  <Line 
+                    points={[0, 0, 160 * Math.cos(drawAngleRad), 160 * Math.sin(drawAngleRad)]} 
+                    stroke="#ef4444" 
+                    strokeWidth={3} 
+                  />
+                  <Arc 
+                    innerRadius={0}
+                    outerRadius={160}
+                    angle={sweepAngle}
+                    fill="rgba(239, 68, 68, 0.3)"
+                    rotation={arcStartRotation}
+                  />
+                  <Label 
+                    x={180 * Math.cos(drawAngleRad)} 
+                    y={180 * Math.sin(drawAngleRad)}
+                    offsetX={25}
+                    offsetY={15}
+                  >
+                    <Tag fill="#ef4444" cornerRadius={4} shadowColor="rgba(0,0,0,0.3)" shadowBlur={4} />
+                    <Text text={`${displayRot}°`} fontSize={16} fill="white" fontStyle="bold" padding={6} />
+                  </Label>
+                </Group>
+              );
+            })()}
           </Layer>
 
           {/* Lines Layer */}
