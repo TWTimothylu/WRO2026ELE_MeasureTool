@@ -315,6 +315,24 @@ export default function App() {
 
   const handleRobotDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     const node = e.target;
+    
+    let isShift = modifiersRef.current.shift;
+    const evt = window.event as any;
+    if (evt && evt.shiftKey !== undefined) isShift = evt.shiftKey;
+
+    if (isShift) {
+      const startX = robotState.x;
+      const startY = robotState.y;
+      const dx = node.x() - startX;
+      const dy = node.y() - startY;
+      
+      if (Math.abs(dx) > Math.abs(dy)) {
+        node.position({ x: node.x(), y: startY });
+      } else {
+        node.position({ x: startX, y: node.y() });
+      }
+    }
+
     const { x, y } = constrainRobotPosition(node);
     node.position({ x, y });
   };
