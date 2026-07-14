@@ -10,7 +10,7 @@ function createWindow() {
       contextIsolation: false
     },
     autoHideMenuBar: true,
-    icon: path.join(__dirname, '../public/vite.svg')
+    icon: path.join(__dirname, '../public/icon.png')
   });
 
   // Load the built index.html
