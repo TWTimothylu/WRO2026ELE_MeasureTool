@@ -612,6 +612,40 @@ export default function App() {
     }));
   };
 
+  // Get style for context menu to prevent it from going out of screen bounds
+  const getContextMenuStyle = () => {
+    if (!contextMenu) return {};
+    
+    const menuWidth = 220;
+    const menuHeight = 250; // Max expected menu height
+    const canvasWidth = window.innerWidth - 280;
+    const canvasHeight = window.innerHeight;
+    
+    // Clamp horizontally
+    let left = contextMenu.x - menuWidth / 2;
+    if (left < 10) left = 10;
+    if (left + menuWidth > canvasWidth - 10) left = canvasWidth - menuWidth - 10;
+    
+    // Clamp vertically: try putting above, if it overflows top, put below
+    let top = contextMenu.y - menuHeight - 15;
+    if (top < 10) {
+      top = contextMenu.y + 15;
+    }
+    
+    // Final clamp to prevent overflowing the bottom of the canvas
+    if (top + menuHeight > canvasHeight - 10) {
+      top = canvasHeight - menuHeight - 10;
+    }
+    if (top < 10) top = 10;
+    
+    return {
+      position: 'absolute' as const,
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${menuWidth}px`,
+    };
+  };
+
   // Reset all shapes and viewport
   const resetAll = () => {
     setLines([]);
@@ -1546,13 +1580,7 @@ export default function App() {
         {contextMenu && contextMenu.visible && (
           <div 
             className="custom-context-menu"
-            style={{
-              position: 'absolute',
-              left: `${contextMenu.x}px`,
-              top: `${contextMenu.y}px`,
-              transform: 'translate(-50%, -100%)',
-              marginTop: '-10px',
-            }}
+            style={getContextMenuStyle()}
           >
             {contextMenu.type === 'arrow' ? (
               <div className="arrow-color-picker">
@@ -1582,37 +1610,31 @@ export default function App() {
             ) : (
               <div className="action-config-menu">
                 <div className="menu-title">動作設定</div>
-                <div className="action-options">
-                  {[
-                    { type: 'turn', label: '轉 n 度' },
-                    { type: 'open_clamp', label: '打開夾子' },
-                    { type: 'close_clamp', label: '關閉夾子' },
-                    { type: 'lift_fork', label: '抬起叉子' },
-                    { type: 'lower_fork', label: '放下叉子' },
-                    { type: 'custom', label: '其它描述' }
-                  ].map((opt) => {
-                    const node = actionNodes.find(n => n.id === contextMenu.targetId);
-                    const isSelected = node?.actionType === opt.type;
-                    return (
-                      <button
-                        key={opt.type}
-                        className={`action-opt-btn ${isSelected ? 'selected' : ''}`}
-                        onClick={() => {
-                          setActionNodes(actionNodes.map(n => {
-                            if (n.id === contextMenu.targetId) {
-                              const updated = { ...n, actionType: opt.type as ActionType };
-                              if (opt.type === 'turn' && n.degrees === undefined) updated.degrees = 90;
-                              if (opt.type === 'custom' && n.customText === undefined) updated.customText = '自訂動作';
-                              return updated;
-                            }
-                            return n;
-                          }));
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
+                <div className="config-input-group" style={{ borderTop: 'none', paddingTop: 0 }}>
+                  <label>選擇動作類型</label>
+                  <select
+                    value={actionNodes.find(n => n.id === contextMenu.targetId)?.actionType || 'custom'}
+                    onChange={(e) => {
+                      const type = e.target.value as ActionType;
+                      setActionNodes(actionNodes.map(n => {
+                        if (n.id === contextMenu.targetId) {
+                          const updated = { ...n, actionType: type };
+                          if (type === 'turn' && n.degrees === undefined) updated.degrees = 90;
+                          if (type === 'custom' && n.customText === undefined) updated.customText = '自訂動作';
+                          return updated;
+                        }
+                        return n;
+                      }));
+                    }}
+                    className="action-select-dropdown"
+                  >
+                    <option value="turn">轉 n 度</option>
+                    <option value="open_clamp">打開夾子</option>
+                    <option value="close_clamp">關閉夾子</option>
+                    <option value="lift_fork">抬起叉子</option>
+                    <option value="lower_fork">放下叉子</option>
+                    <option value="custom">其它描述</option>
+                  </select>
                 </div>
                 
                 {(() => {

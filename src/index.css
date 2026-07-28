@@ -341,6 +341,22 @@ body {
   border-color: var(--primary);
 }
 
+.config-input-group select {
+  padding: 6px 10px;
+  background-color: var(--background);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  color: white;
+  font-size: 0.85rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+.config-input-group select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
 .confirm-menu-btn {
   width: 100%;
   padding: 8px;
