@@ -35,7 +35,7 @@ type ActionNode = {
   x: number;
   y: number;
   actionType: ActionType;
-  degrees?: number;
+  degrees?: number | string;
   customText?: string;
   isExpanded: boolean;
 };
@@ -1086,7 +1086,7 @@ export default function App() {
               let actionText = '';
               switch(node.actionType) {
                 case 'turn':
-                  actionText = `轉 ${node.degrees || 0}°`;
+                  actionText = `轉 ${node.degrees === '-' ? '-' : (node.degrees ?? 0)}°`;
                   break;
                 case 'open_clamp':
                   actionText = '打開夾子';
@@ -1645,14 +1645,16 @@ export default function App() {
                       <div className="config-input-group">
                         <label>輸入旋轉度數 (°)</label>
                         <input
-                          type="number"
+                          type="text"
                           value={node.degrees ?? 90}
                           onChange={(e) => {
-                            const deg = parseInt(e.target.value) || 0;
-                            setActionNodes(actionNodes.map(n => {
-                              if (n.id === node.id) return { ...n, degrees: deg };
-                              return n;
-                            }));
+                            const val = e.target.value;
+                            if (val === '' || val === '-' || /^-?\d*$/.test(val)) {
+                              setActionNodes(actionNodes.map(n => {
+                                if (n.id === node.id) return { ...n, degrees: val };
+                                return n;
+                              }));
+                            }
                           }}
                         />
                       </div>
