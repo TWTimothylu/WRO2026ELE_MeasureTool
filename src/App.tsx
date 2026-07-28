@@ -891,6 +891,148 @@ export default function App() {
             />
           </Layer>
 
+          {/* Robot Layer */}
+          <Layer>
+            <Group
+              ref={robotRef}
+              width={ROBOT_WIDTH}
+              height={ROBOT_HEIGHT}
+              x={robotState.x}
+              y={robotState.y}
+              rotation={robotState.rotation}
+              draggable={mode === 'select'}
+              onDragStart={() => {
+                if (mode === 'select') {
+                  setActiveLineId(null);
+                  setActiveArrowId(null);
+                  setActiveActionNodeId(null);
+                  setActiveAnnotationId(null);
+                  setIsRobotSelected(true);
+                }
+              }}
+              onDragMove={handleRobotDragMove}
+              onDragEnd={handleRobotDragEnd}
+              onTransformStart={() => {
+                setIsRotating(true);
+                setInitialRotation(robotState.rotation);
+              }}
+              onTransform={handleRobotTransform}
+              onTransformEnd={(e) => {
+                setIsRotating(false);
+                e.target.x(robotState.x);
+                e.target.y(robotState.y);
+                setRobotState({
+                  ...robotState,
+                  rotation: e.target.rotation(),
+                });
+              }}
+              offsetX={ROBOT_PIVOT_X}
+              offsetY={ROBOT_PIVOT_Y}
+              onClick={(e) => {
+                e.cancelBubble = true;
+                if (mode === 'select') {
+                  setActiveLineId(null);
+                  setActiveArrowId(null);
+                  setActiveActionNodeId(null);
+                  setActiveAnnotationId(null);
+                  setIsRobotSelected(true);
+                }
+              }}
+              onMouseEnter={e => { if(mode === 'select') e.target.getStage()!.container().style.cursor = 'grab'; }}
+              onMouseLeave={e => { e.target.getStage()!.container().style.cursor = 'default'; }}
+            >
+              <KonvaImage
+                image={robotImage}
+                width={ROBOT_WIDTH}
+                height={ROBOT_HEIGHT}
+                shadowColor="rgba(0,0,0,0.3)"
+                shadowBlur={10}
+                shadowOffset={{ x: 2, y: 2 }}
+              />
+              <Circle
+                x={ROBOT_PIVOT_X}
+                y={ROBOT_PIVOT_Y}
+                radius={4}
+                fill="#ef4444"
+              />
+            </Group>
+            
+            {mode === 'select' && (
+              <Transformer
+                ref={trRef}
+                enabledAnchors={[]}
+                ignoreStroke={true}
+              />
+            )}
+
+            {/* Protractor Overlay */}
+            {isRotating && (() => {
+              const rotAngle = Math.round(robotState.rotation);
+              const initAngle = Math.round(initialRotation);
+              
+              // Calculate angle difference: right positive, left negative, within +-180
+              let diffRot = (rotAngle - initAngle) % 360;
+              if (diffRot > 180) diffRot -= 360;
+              if (diffRot <= -180) diffRot += 360;
+
+              const offsetAngle = -90; // Robot front is UP (-90deg)
+              const drawAngleRad = (rotAngle + offsetAngle) * Math.PI / 180;
+              const initialAngleRad = (initAngle + offsetAngle) * Math.PI / 180;
+              
+              const sweepAngle = Math.abs(diffRot);
+              const arcStartRotation = diffRot >= 0 
+                ? (initAngle + offsetAngle) 
+                : (initAngle + offsetAngle + diffRot);
+
+              return (
+                <Group x={robotState.x} y={robotState.y}>
+                  <Circle radius={160} stroke="white" strokeWidth={4} dash={[10, 10]} globalCompositeOperation="difference" />
+                  <Line points={[-170, 0, 170, 0]} stroke="white" strokeWidth={3} globalCompositeOperation="difference" />
+                  <Line points={[0, -170, 0, 170]} stroke="white" strokeWidth={3} globalCompositeOperation="difference" />
+
+                  <Circle radius={160} stroke="#60a5fa" strokeWidth={2} dash={[10, 10]} />
+                  <Line points={[-170, 0, 170, 0]} stroke="#e2e8f0" strokeWidth={1} />
+                  <Line points={[0, -170, 0, 170]} stroke="#e2e8f0" strokeWidth={1} />
+
+                  {/* 1. Indication line of the ORIGINAL heading (原本面朝方向) - dashed blue line */}
+                  <Line 
+                    points={[0, 0, 160 * Math.cos(initialAngleRad), 160 * Math.sin(initialAngleRad)]} 
+                    stroke="#3b82f6" 
+                    strokeWidth={3} 
+                    dash={[6, 4]} 
+                  />
+
+                  {/* 2. Indication line of the CURRENT heading (現在面朝方向) - solid red line */}
+                  <Line 
+                    points={[0, 0, 160 * Math.cos(drawAngleRad), 160 * Math.sin(drawAngleRad)]} 
+                    stroke="#ef4444" 
+                    strokeWidth={3} 
+                  />
+                  
+                  {/* 3. Sweep Arc indicating the angle change */}
+                  <Arc 
+                    innerRadius={0}
+                    outerRadius={160}
+                    angle={sweepAngle}
+                    fill="rgba(239, 68, 68, 0.3)"
+                    rotation={arcStartRotation}
+                  />
+                  
+                  {/* 4. Degree Label showing the relative rotation change */}
+                  <Label 
+                    x={180 * Math.cos(drawAngleRad)} 
+                    y={180 * Math.sin(drawAngleRad)}
+                    offsetX={25}
+                    offsetY={15}
+                  >
+                    <Tag fill="#ef4444" cornerRadius={4} shadowColor="rgba(0,0,0,0.3)" shadowBlur={4} />
+                    <Text text={`${diffRot >= 0 ? '+' : ''}${diffRot}°`} fontSize={16} fill="white" fontStyle="bold" padding={6} />
+                  </Label>
+                </Group>
+              );
+            })()}
+          </Layer>
+
           {/* Paths Layer (Arrows & Lines & Nodes & Annotations) */}
           <Layer>
             {/* 1. Draw Measurement Lines */}
@@ -1426,148 +1568,6 @@ export default function App() {
                   />
               </Group>
             )}
-          </Layer>
-
-          {/* Robot Layer */}
-          <Layer>
-            <Group
-              ref={robotRef}
-              width={ROBOT_WIDTH}
-              height={ROBOT_HEIGHT}
-              x={robotState.x}
-              y={robotState.y}
-              rotation={robotState.rotation}
-              draggable={mode === 'select'}
-              onDragStart={() => {
-                if (mode === 'select') {
-                  setActiveLineId(null);
-                  setActiveArrowId(null);
-                  setActiveActionNodeId(null);
-                  setActiveAnnotationId(null);
-                  setIsRobotSelected(true);
-                }
-              }}
-              onDragMove={handleRobotDragMove}
-              onDragEnd={handleRobotDragEnd}
-              onTransformStart={() => {
-                setIsRotating(true);
-                setInitialRotation(robotState.rotation);
-              }}
-              onTransform={handleRobotTransform}
-              onTransformEnd={(e) => {
-                setIsRotating(false);
-                e.target.x(robotState.x);
-                e.target.y(robotState.y);
-                setRobotState({
-                  ...robotState,
-                  rotation: e.target.rotation(),
-                });
-              }}
-              offsetX={ROBOT_PIVOT_X}
-              offsetY={ROBOT_PIVOT_Y}
-              onClick={(e) => {
-                e.cancelBubble = true;
-                if (mode === 'select') {
-                  setActiveLineId(null);
-                  setActiveArrowId(null);
-                  setActiveActionNodeId(null);
-                  setActiveAnnotationId(null);
-                  setIsRobotSelected(true);
-                }
-              }}
-              onMouseEnter={e => { if(mode === 'select') e.target.getStage()!.container().style.cursor = 'grab'; }}
-              onMouseLeave={e => { e.target.getStage()!.container().style.cursor = 'default'; }}
-            >
-              <KonvaImage
-                image={robotImage}
-                width={ROBOT_WIDTH}
-                height={ROBOT_HEIGHT}
-                shadowColor="rgba(0,0,0,0.3)"
-                shadowBlur={10}
-                shadowOffset={{ x: 2, y: 2 }}
-              />
-              <Circle
-                x={ROBOT_PIVOT_X}
-                y={ROBOT_PIVOT_Y}
-                radius={4}
-                fill="#ef4444"
-              />
-            </Group>
-            
-            {mode === 'select' && (
-              <Transformer
-                ref={trRef}
-                enabledAnchors={[]}
-                ignoreStroke={true}
-              />
-            )}
-
-            {/* Protractor Overlay */}
-            {isRotating && (() => {
-              const rotAngle = Math.round(robotState.rotation);
-              const initAngle = Math.round(initialRotation);
-              
-              // Calculate angle difference: right positive, left negative, within +-180
-              let diffRot = (rotAngle - initAngle) % 360;
-              if (diffRot > 180) diffRot -= 360;
-              if (diffRot <= -180) diffRot += 360;
-
-              const offsetAngle = -90; // Robot front is UP (-90deg)
-              const drawAngleRad = (rotAngle + offsetAngle) * Math.PI / 180;
-              const initialAngleRad = (initAngle + offsetAngle) * Math.PI / 180;
-              
-              const sweepAngle = Math.abs(diffRot);
-              const arcStartRotation = diffRot >= 0 
-                ? (initAngle + offsetAngle) 
-                : (initAngle + offsetAngle + diffRot);
-
-              return (
-                <Group x={robotState.x} y={robotState.y}>
-                  <Circle radius={160} stroke="white" strokeWidth={4} dash={[10, 10]} globalCompositeOperation="difference" />
-                  <Line points={[-170, 0, 170, 0]} stroke="white" strokeWidth={3} globalCompositeOperation="difference" />
-                  <Line points={[0, -170, 0, 170]} stroke="white" strokeWidth={3} globalCompositeOperation="difference" />
-
-                  <Circle radius={160} stroke="#60a5fa" strokeWidth={2} dash={[10, 10]} />
-                  <Line points={[-170, 0, 170, 0]} stroke="#e2e8f0" strokeWidth={1} />
-                  <Line points={[0, -170, 0, 170]} stroke="#e2e8f0" strokeWidth={1} />
-
-                  {/* 1. Indication line of the ORIGINAL heading (原本面朝方向) - dashed blue line */}
-                  <Line 
-                    points={[0, 0, 160 * Math.cos(initialAngleRad), 160 * Math.sin(initialAngleRad)]} 
-                    stroke="#3b82f6" 
-                    strokeWidth={3} 
-                    dash={[6, 4]} 
-                  />
-
-                  {/* 2. Indication line of the CURRENT heading (現在面朝方向) - solid red line */}
-                  <Line 
-                    points={[0, 0, 160 * Math.cos(drawAngleRad), 160 * Math.sin(drawAngleRad)]} 
-                    stroke="#ef4444" 
-                    strokeWidth={3} 
-                  />
-                  
-                  {/* 3. Sweep Arc indicating the angle change */}
-                  <Arc 
-                    innerRadius={0}
-                    outerRadius={160}
-                    angle={sweepAngle}
-                    fill="rgba(239, 68, 68, 0.3)"
-                    rotation={arcStartRotation}
-                  />
-                  
-                  {/* 4. Degree Label showing the relative rotation change */}
-                  <Label 
-                    x={180 * Math.cos(drawAngleRad)} 
-                    y={180 * Math.sin(drawAngleRad)}
-                    offsetX={25}
-                    offsetY={15}
-                  >
-                    <Tag fill="#ef4444" cornerRadius={4} shadowColor="rgba(0,0,0,0.3)" shadowBlur={4} />
-                    <Text text={`${diffRot >= 0 ? '+' : ''}${diffRot}°`} fontSize={16} fill="white" fontStyle="bold" padding={6} />
-                  </Label>
-                </Group>
-              );
-            })()}
           </Layer>
         </Stage>
         
